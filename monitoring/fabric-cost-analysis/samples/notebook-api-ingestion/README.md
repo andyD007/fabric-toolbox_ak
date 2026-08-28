@@ -95,6 +95,26 @@ operations — visible immediately as `IsThrottled = true`) or, if autoscale/pay
 overage is enabled, burns extra billed CU (visible as a `fact_cost_fabric` spike on the same
 `CapacityId`/date). Plot both on the same timeline per capacity to make that link visible.
 
+## Troubleshooting: `getToken` fails with a 500 from "TM"
+
+```
+Py4JJavaError: ... java.io.IOException: 500 {"code":"INTERNAL_ERROR", ... "Source":"TM"}
+```
+
+This is a **Fabric-side token broker error** (Token Management service), not a permissions
+or code problem — it fails before the request ever reaches Azure. The Cost and Budget
+notebooks wrap `getToken` with retry/backoff for exactly this, but if it still fails after
+retries:
+
+1. **Restart the notebook session** (Stop session → run again) — clears a stuck broker
+   session, the most common fix.
+2. Try `notebookutils.credentials.getToken("pbi")` in a scratch cell — if that also 500s,
+   the broker itself is unhealthy, not anything specific to the ARM audience.
+3. If you're on a **Trial capacity**, `getToken` for external AAD audiences has been
+   reported flaky there; an F-SKU capacity tends to be more reliable.
+4. Still failing → note the `RootActivityId` from the error and open a support ticket; it's
+   a platform-side issue at that point.
+
 ## Growing this into a full dashboard
 
 1. Schedule all three notebooks (own **Schedule**, or one Data Pipeline chaining them, mirroring
