@@ -47,6 +47,38 @@ When any of these notebooks is scheduled (notebook **Schedule**, or a Data Pipel
 **Notebook activity**), the identity is whichever principal owns that schedule/pipeline —
 grant that principal the same roles instead of relying on interactive sign-in.
 
+### Service Principal setup (recommended for the Cost and Budget notebooks)
+
+The delegated-identity path (`notebookutils.credentials.getToken`) routes through Fabric's
+own token-broker service, which has shown intermittent `500 INTERNAL_ERROR` / `Source: TM`
+failures for the ARM audience specifically — a Fabric-side reliability issue, not a
+permissions problem (see [Troubleshooting](#troubleshooting-gettoken-fails-with-a-500-from-tm)
+below). Both notebooks support switching to a **Service Principal** instead, which does a
+direct OAuth2 client-credentials call to Azure AD and never touches that broker. One-time
+setup:
+
+```bash
+# 1. Create the app registration + service principal
+az ad sp create-for-rbac --name "fca-notebook-api" --skip-assignment
+# Note the appId (-> spn_client_id), password (-> the Key Vault secret value), and tenant (-> tenant_id) from the output
+
+# 2. Grant it read access to cost data on your scope
+az role assignment create \
+  --assignee <appId> \
+  --role "Cost Management Reader" \
+  --scope "/subscriptions/<subscription-id>"
+
+# 3. Store the client secret in a Key Vault the notebook can reach
+az keyvault secret set --vault-name <your-keyvault-name> --name fca-spn-secret --value <password>
+
+# 4. Grant the identity running the notebook "get" access to that secret
+az keyvault set-policy --name <your-keyvault-name> --upn <your-email> --secret-permissions get
+```
+
+Then in each notebook's Parameters cell, set `tenant_id`, `spn_client_id`,
+`key_vault_url`, and `key_vault_secret_name` — leaving `spn_client_id` empty keeps the
+delegated-identity path as the default/fallback.
+
 ## Enhanced star schema
 
 ```
