@@ -31,10 +31,13 @@ ingestion step, not anything downstream.
    [`../../Deploy.md`](../../Deploy.md) section 1.1, just pointed at this export instead of a
    FOCUS Parquet one).
 2. Run the notebook's Step 0 cell against one known CSV file to confirm your export's actual
-   `ServiceName` value — FOCUS exports have been observed using both `"Microsoft Fabric"` and
-   `"Microsoft.Fabric"` depending on version/tenant. FCA's own `01_Load_Focus_Fabric.Notebook`
-   hardcodes `ServiceName = 'Microsoft.Fabric'` — update that filter if your export uses the
-   other form.
+   `ServiceName` **and** `ChargeDescription` values. FCA's own `01_Load_Focus_Fabric.Notebook`
+   hardcodes `ServiceName = 'Microsoft.Fabric'` — if your export mixes Fabric in with other
+   services (Databricks, disk, compute, etc., as many exports do), `ServiceName` alone won't
+   isolate Fabric cleanly, and `ChargeDescription` (e.g. values like `Fabric` / `OneLake`) is
+   the more precise filter — Step 0 shows the exact strings your export uses so the filter in
+   `01_Load_Focus_Fabric.Notebook` can be swapped to match them precisely (case/spacing
+   varies by tenant, so don't assume the exact spelling without checking).
 3. Confirm your export's folder layout matches one of the two patterns FCA's path-detection
    already handles (`YYYY/MM/...` or `YYYYMMDD-YYYYMMDD/...`) — if your export uses a
    different structure, the regexes in the notebook's Step 1 cell need adjusting to match.
