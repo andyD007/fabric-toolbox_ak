@@ -43,3 +43,18 @@ of it with no changes** — this only replaces the very first ingestion step.
 3. **Refresh workflow**: each time you want updated numbers, replace the file(s) under
    `rawSourcePath` with a fresh export before re-running — leaving an old file alongside a new
    one will double-count, since this reads everything present under that folder.
+
+## Column types matter downstream
+
+A plain CSV read has no schema, so every column -- including dates and costs -- comes in as
+text. This notebook explicitly casts the FOCUS date columns (`BillingPeriodStart`,
+`ChargePeriodStart`, etc.) to timestamp and the cost/quantity columns (`BilledCost`,
+`EffectiveCost`, etc.) to double before writing `focus`. Skipping that (or if you're adapting
+this for a different export with different column names) causes two silent failures
+downstream:
+
+- `01_Load_Focus_Fabric.Notebook`'s `BillingPeriodStart IN (...)` date filter compares
+  against a differently-formatted string and matches nothing, regardless of `fromMonth`/
+  `toMonth` -- this can look identical to a wrong month being selected, but isn't.
+- Cost/quantity visuals in the report return blank, since SUM over a text column isn't
+  meaningful.
